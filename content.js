@@ -55,26 +55,34 @@
           const btn = shadow.querySelector('button');
 
           // Click the summary to expand (this is the standard way for details/summary)
-          if (summary && !wasClicked(comment)) {
-            markAsClicked(comment);
-            summary.click();
-            count++;
-          } else if (btn && !wasClicked(comment)) {
-            markAsClicked(comment);
-            btn.click();
-            count++;
-          } else if (details && !details.hasAttribute('open') && !wasClicked(comment)) {
-            markAsClicked(comment);
-            details.setAttribute('open', '');
-            count++;
+          try {
+            if (summary && !wasClicked(comment)) {
+              markAsClicked(comment);
+              summary.click();
+              count++;
+            } else if (btn && !wasClicked(comment)) {
+              markAsClicked(comment);
+              btn.click();
+              count++;
+            } else if (details && !details.hasAttribute('open') && !wasClicked(comment)) {
+              markAsClicked(comment);
+              details.setAttribute('open', '');
+              count++;
+            }
+          } catch (e) {
+            // Click failed, continue to next element
           }
         } else {
           // Fallback for non-shadow DOM (shouldn't happen but just in case)
-          const btn = comment.querySelector('button');
-          if (btn && !wasClicked(btn)) {
-            markAsClicked(btn);
-            btn.click();
-            count++;
+          try {
+            const btn = comment.querySelector('button');
+            if (btn && !wasClicked(btn)) {
+              markAsClicked(btn);
+              btn.click();
+              count++;
+            }
+          } catch (e) {
+            // Click failed, continue
           }
         }
       }
@@ -101,50 +109,55 @@
         /^see\s*more/i.test(text) ||
         /^load\s*more/i.test(text)
       ) {
-        markAsClicked(btn);
-        btn.click();
-        count++;
+        try {
+          markAsClicked(btn);
+          btn.click();
+          count++;
+        } catch (e) {
+          // Click failed, continue
+        }
       }
     });
 
     // 5. Faceplate loaders (Reddit's lazy-load components)
     document.querySelectorAll('faceplate-partial[loading="action:click"]').forEach(partial => {
-      const btn = partial.querySelector('button');
-      if (btn && !isExcluded(btn) && !wasClicked(btn)) {
-        const text = (btn.textContent || '').toLowerCase();
-        if (text.includes('more') || text.includes('repl') || text.includes('comment')) {
-          markAsClicked(btn);
-          btn.click();
-          count++;
+      try {
+        const btn = partial.querySelector('button');
+        if (btn && !isExcluded(btn) && !wasClicked(btn)) {
+          const text = (btn.textContent || '').toLowerCase();
+          if (text.includes('more') || text.includes('repl') || text.includes('comment')) {
+            markAsClicked(btn);
+            btn.click();
+            count++;
+          }
         }
+      } catch (e) {
+        // Click failed, continue
       }
     });
 
     // 6. Old Reddit
     document.querySelectorAll('.morecomments a, .morechildren a').forEach(link => {
-      if (isExcluded(link) || link.offsetParent === null || wasClicked(link)) return;
-      markAsClicked(link);
-      link.click();
-      count++;
+      try {
+        if (isExcluded(link) || link.offsetParent === null || wasClicked(link)) return;
+        markAsClicked(link);
+        link.click();
+        count++;
+      } catch (e) {
+        // Click failed, continue
+      }
     });
 
     // 7. Old Reddit collapsed threads
     document.querySelectorAll('.thing.collapsed > .entry .expand').forEach(btn => {
-      if (!wasClicked(btn)) {
-        markAsClicked(btn);
-        btn.click();
-        count++;
-      }
-    });
-
-    // 8. Any remaining collapsed elements with toggle buttons
-    document.querySelectorAll('[collapsed], [data-collapsed="true"]').forEach(el => {
-      if (isExcluded(el)) return;
-      const btn = el.querySelector('button:not([data-reddit-expander-clicked])');
-      if (btn && !wasClicked(btn)) {
-        markAsClicked(btn);
-        btn.click();
-        count++;
+      try {
+        if (!wasClicked(btn)) {
+          markAsClicked(btn);
+          btn.click();
+          count++;
+        }
+      } catch (e) {
+        // Click failed, continue
       }
     });
 
@@ -379,8 +392,13 @@
     }
   }
 
-  // Public API for popup to call
+  // Public API for popup and background script to call
   window._redditExpander = {
+    // Toast methods exposed for background.js
+    showToast,
+    updateToast,
+    hideToast,
+
     start: async (onProgress) => {
       if (isRunning) return { error: 'Already running' };
 
